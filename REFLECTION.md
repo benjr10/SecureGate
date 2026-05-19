@@ -3,7 +3,7 @@
 Name: Odunmbaku Olusola Benjamen
 Cohort: Design to MVP Bootcamp
 Live URL:
-GitHub Repo: https://github.com/benjr10/SecureGate
+GitHub Repo: https://github.com/benjr10/SecureGate.git
 ....
 
 ## Part 1 — What I Built
