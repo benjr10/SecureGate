@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "../tokens/design-tokens.css";
+
+/* Reset and Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  font-family: var(--font-body-body-medium-font-family), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: var(--font-body-body-medium-font-size);
+  line-height: var(--font-body-body-medium-line-height);
+  letter-spacing: var(--font-body-body-medium-letter-spacing);
+  background-color: var(--color-roles-neutral-roles-on-neutral-color-role); /* white */
+  color: var(--color-roles-neutral-roles-neutral-color-role); /* black */
+  min-height: 100vh;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+a {
+  color: var(--color-roles-primary-roles-primary-color-role);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+a:hover {
+  opacity: 0.8;
+}
+
+/* Custom Accessibility Focus State */
+*:focus-visible {
+  outline: 2px solid var(--color-roles-primary-roles-primary-color-role);
+  outline-offset: 2px;
+}
