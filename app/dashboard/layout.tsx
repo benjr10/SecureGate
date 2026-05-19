@@ -30,7 +30,7 @@ export default async function DashboardLayout({
       <div className="dashboard-content-frame">
         <header className="dashboard-header">
           <div className="dashboard-header-title">Identity & Access Panel</div>
-          <div style={{ fontSize: '12px', color: '#718096', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ fontSize: '0.75rem', color: '#718096', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
             <span
               style={{
                 width: '8px',

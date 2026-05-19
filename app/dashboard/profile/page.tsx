@@ -29,33 +29,33 @@ export default async function ProfilePage() {
       </div>
 
       <div className="details-card shadow-premium">
-        <h4 style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '12px', marginBottom: '20px' }}>
+        <h4 style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem', marginBottom: '1.25rem' }}>
           Registered Parameters
         </h4>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#718096' }}>User ID</span>
-            <span style={{ fontSize: '14px', fontFamily: 'monospace', color: '#2d3748', backgroundColor: '#f7fafc', padding: '4px 8px', borderRadius: '4px', width: 'fit-content' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(6rem, 9.375rem) 1fr', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.813rem', fontWeight: '600', color: '#718096' }}>User ID</span>
+            <span style={{ fontSize: '0.875rem', fontFamily: 'monospace', color: '#2d3748', backgroundColor: '#f7fafc', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', width: 'fit-content' }}>
               {user.id}
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#718096' }}>Full Name</span>
-            <span style={{ fontSize: '14px', color: '#2d3748' }}>{user.name}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(6rem, 9.375rem) 1fr', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.813rem', fontWeight: '600', color: '#718096' }}>Full Name</span>
+            <span style={{ fontSize: '0.875rem', color: '#2d3748' }}>{user.name}</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#718096' }}>Email Address</span>
-            <span style={{ fontSize: '14px', color: '#2d3748' }}>{user.email}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(6rem, 9.375rem) 1fr', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.813rem', fontWeight: '600', color: '#718096' }}>Email Address</span>
+            <span style={{ fontSize: '0.875rem', color: '#2d3748' }}>{user.email}</span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#718096' }}>Email Verified</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(6rem, 9.375rem) 1fr', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.813rem', fontWeight: '600', color: '#718096' }}>Email Verified</span>
             <span
               style={{
-                fontSize: '13px',
+                fontSize: '0.813rem',
                 color: user.emailVerified ? 'var(--color-roles-success-roles-on-success-container-color-role)' : 'red',
                 fontWeight: '500',
               }}
@@ -64,25 +64,25 @@ export default async function ProfilePage() {
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#718096' }}>Account Created</span>
-            <span style={{ fontSize: '14px', color: '#2d3748' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(6rem, 9.375rem) 1fr', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.813rem', fontWeight: '600', color: '#718096' }}>Account Created</span>
+            <span style={{ fontSize: '0.875rem', color: '#2d3748' }}>
               {new Date(user.createdAt).toLocaleString()}
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#718096' }}>Last Updated</span>
-            <span style={{ fontSize: '14px', color: '#2d3748' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(6rem, 9.375rem) 1fr', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.813rem', fontWeight: '600', color: '#718096' }}>Last Updated</span>
+            <span style={{ fontSize: '0.875rem', color: '#2d3748' }}>
               {new Date(user.updatedAt).toLocaleString()}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="alert alert-warning" style={{ marginTop: '24px' }}>
+      <div className="alert alert-warning" style={{ marginTop: '1.5rem' }}>
         <svg
-          style={{ width: '20px', height: '20px', flexShrink: 0, marginTop: '2px' }}
+          style={{ width: '1.25rem', height: '1.25rem', flexShrink: 0, marginTop: '0.125rem' }}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

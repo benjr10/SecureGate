@@ -68,7 +68,7 @@ export default function ForgotPasswordPage() {
                 d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
               />
             </svg>
-            <span style={{ fontSize: '20px' }}>SecureGate</span>
+            <span style={{ fontSize: '1.25rem' }}>SecureGate</span>
           </Link>
           <h2>Recover Password</h2>
           <p>Request a secure password recovery activation link</p>
@@ -85,7 +85,7 @@ export default function ForgotPasswordPage() {
                 id="forgot-email"
                 type="email"
                 className="form-control"
-                placeholder="you@example.com"
+                placeholder="Enter Email Address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
@@ -100,7 +100,7 @@ export default function ForgotPasswordPage() {
         )}
 
         <div className="auth-footer-links">
-          <Link href="/auth?tab=login" style={{ fontSize: '13px' }}>
+          <Link href="/auth?tab=login" style={{ fontSize: '0.813rem' }}>
             Back to Sign In
           </Link>
         </div>

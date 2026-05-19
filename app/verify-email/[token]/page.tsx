@@ -70,7 +70,7 @@ export default function VerifyEmailPage() {
               />
             </div>
             <h2>Verifying Account</h2>
-            <p style={{ color: '#718096', marginTop: '10px' }}>Checking security signature and token expiration status...</p>
+            <p style={{ color: '#718096', marginTop: '0.625rem' }}>Checking security signature and token expiration status...</p>
             <style jsx global>{`
               @keyframes spin {
                 to { transform: rotate(360deg); }

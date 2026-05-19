@@ -95,7 +95,7 @@ function VerifyPromptForm() {
             </div>
           </div>
           <h2>Verify Your Email</h2>
-          <p style={{ fontSize: '14px', lineHeight: '20px', marginTop: '12px' }}>
+          <p style={{ fontSize: '0.875rem', lineHeight: '1.5', marginTop: '0.75rem' }}>
             We've sent a verification link to your email address. You must verify your account to unlock dashboard access.
           </p>
         </div>
@@ -124,7 +124,7 @@ function VerifyPromptForm() {
         </form>
 
         <div className="auth-footer-links">
-          <Link href="/auth?tab=login" style={{ fontSize: '13px' }}>
+          <Link href="/auth?tab=login" style={{ fontSize: '0.813rem' }}>
             Back to Sign In
           </Link>
         </div>
