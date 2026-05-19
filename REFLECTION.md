@@ -21,529 +21,184 @@ What surprised me most was how many edge cases exist in authentication systems e
 
 # Q1 — Murphy’s Law
 
-Two places where Murphy’s Law directly influenced defensive design:
+Code reference: `lib/auth.ts:34-39` and `lib/auth.ts:83-91`
 
-## 1. Rate limiting in `lib/auth.ts:34-39`
+Murphy’s Law influenced a lot of the security decisions in SecureGate because I had to assume users or attackers would eventually try to break things.
 
-The NextAuth `authorize` callback checks `checkRateLimit` before even looking up the user.
+One example is the rate limiting inside the login flow. Before checking the user’s password, the app first checks how many failed attempts were made recently. If there are too many attempts, the request gets blocked immediately. This helps reduce brute-force attacks.
 
-Without this, a brute-force script could repeatedly hit the login endpoint with password guesses until it eventually finds a weak credential. The rate limiter stops that early. After 5 failed attempts within 15 minutes, the request exits immediately with a `Too many attempts` response.
-
-No database lookup. No password comparison. Just an early block.
-
-## 2. DB session sync in `lib/auth.ts:83-91`
-
-The JWT callback queries the database whenever the token refreshes to sync `emailVerified` status:
-
-```ts
-const dbUser = await db.user.findUnique({
-  where: { email: token.email },
-  select: { emailVerified: true }
-})
-```
-
-Without this sync, the JWT cookie could still contain stale verification data until the session expires. A user whose email verification was revoked could still keep dashboard access for hours.
-
-Refreshing from the database reduces that window to almost nothing.
+Another example is how the JWT session refreshes verification status from the database. Without this, a user could still keep access with outdated session data even after their verification state changes.
 
 ---
 
 # Q2 — Law of Leaky Abstractions
 
-**Abstraction:** NextAuth Credentials Provider
-**Code reference:** `lib/auth.ts:21-62`
+Code reference: `lib/auth.ts:21-62`
 
-NextAuth’s `authorize` callback looks simple on the surface: validate credentials and either return a user or throw an error.
+I used NextAuth for authentication because it hides a lot of complexity, but some implementation details still leak through.
 
-But some of the underlying behavior still leaks through.
+For example, the Credentials Provider only validates the login request. The actual JWT creation and cookie handling happen later internally. Error handling also leaks through because detailed errors can accidentally expose information about valid accounts.
 
-For example, `CredentialsProvider` does not actually create the session itself. It only runs during the sign-in request. JWT signing and cookie creation happen later inside NextAuth’s internal request flow.
-
-Error handling also leaks through the abstraction. If `authorize` throws detailed errors like:
-
-* `User not found`
-* `Password comparison failed`
-
-NextAuth can expose parts of that flow through redirects and query parameters.
-
-To avoid leaking information, every failure path returns the same generic message:
-
-```ts
-"Invalid email or password"
-```
-
-So even though NextAuth abstracts authentication, you still need to understand how its redirect and error pipeline works to avoid exposing sensitive details.
+To avoid this, all login failures return the same message: “Invalid email or password.”
 
 ---
 
 # Q3 — YAGNI
 
-Adding social login, MFA, or audit logs at this stage would violate YAGNI because none of them are required for the current scope.
+Code reference: `lib/auth.ts`, `middleware.ts`, and `app/api/auth/*`
 
-Social login would mean handling OAuth providers, callback flows, account linking, token refresh logic, and provider-specific edge cases before there’s any real need for them.
+I intentionally avoided adding features like social login, MFA, and audit logs because the project did not need them yet.
 
-MFA would introduce TOTP generation, QR codes, recovery flows, device registration, and additional verification steps across the auth system.
+Those features would add a lot more complexity to the authentication system. Instead, I focused on making the core signup, login, verification, and session flow stable first.
 
-Audit logs would require a new database model, logging middleware, retention handling, and a UI to actually view the logs.
-
-The better approach is to add these features only when a real requirement appears.
-
-The current architecture already leaves room for extension:
-
-* social login can be added as another provider
-* MFA can plug into the existing auth flow
-* audit logging can be introduced as a separate module
-
-But pre-building all of that now would only add complexity to a system that does not need it yet.
+The current structure still leaves room to add those features later if needed.
 
 ---
 
 # Q4 — Kerckhoffs’s Principle (Password Hashing)
 
-A salt is a random value added to a password before hashing so that identical passwords still produce different hashes.
+Code reference: `lib/auth.ts` and `app/api/auth/register/route.ts`
 
-`bcryptjs` automatically handles this by embedding the salt directly into the stored hash.
+Passwords are hashed with bcryptjs before being stored in the database.
 
-If the project used plain SHA-256 hashing instead of bcrypt:
+bcrypt automatically adds a salt to every password hash, which means even users with the same password will still have completely different hashes stored.
 
-## 1. Rainbow tables become effective
-
-Attackers can use precomputed SHA-256 lookup tables for common passwords and reverse many hashes almost instantly.
-
-## 2. Brute-force attacks become practical
-
-SHA-256 is extremely fast, which makes it bad for password storage. Attackers can test massive numbers of password guesses very quickly.
-
-## 3. Shared passwords become obvious
-
-Two users with the same password would produce the same SHA-256 hash, making reused credentials easy to spot.
-
-`bcryptjs` reduces these risks by using unique salts and intentionally slow hashing.
-
-Even if two users choose the same password, their stored hashes will still be completely different.
+If I had used plain SHA-256 instead, password cracking would become much easier because SHA-256 is very fast and vulnerable to rainbow table attacks.
 
 ---
 
 # Q5 — Postel’s Law / Security by Design
 
-**Code reference:** `app/api/auth/forgot-password/route.ts:42-49`
+Code reference: `app/api/auth/forgot-password/route.ts:42-49`
 
-```ts
-if (!user) {
-  return NextResponse.json(genericResponse);
-}
-```
+The forgot-password endpoint always returns the same response whether the email exists or not.
 
-The forgot-password endpoint always returns the same response:
+This prevents attackers from checking which emails are registered in the system.
 
-```json
-{
-  "success": true,
-  "message": "If an account exists, a reset link has been sent."
-}
-```
-
-It does not reveal whether the email actually exists.
-
-If valid and invalid emails returned different messages, attackers could use the endpoint to identify registered accounts.
-
-Once attackers know which emails are valid, they can target those users with phishing attempts, credential stuffing, or social engineering.
-
-Returning the same response for every request removes that signal entirely.
+If the app exposed different responses for valid and invalid emails, attackers could use that information for phishing or credential stuffing attempts.
 
 ---
 
 # Q6 — Boy Scout Rule
 
-**Code reference:** `tokens/design-tokens.css lines 203-368`
+Code reference: `tokens/design-tokens.css:203-368`
 
-While auditing the CSS tokens file, I found two full sets of identical custom properties:
+While reviewing the design tokens file, I noticed there were two sets of typography variables that contained almost identical values.
 
-* `--font-*`
-* `--typography-*`
+Only one set was actually being used, so I removed the unused duplicate variables to reduce confusion and keep the file cleaner.
 
-For example:
-
-```css
---font-display-display-large-font-size: 63px
-```
-
-and
-
-```css
---typography-display-display-large-fontsize: 63px
-```
-
-both existed with the same values.
-
-Only the `--font-*` variables were actually being used. The entire `--typography-*` block was dead code adding unnecessary noise.
-
-I removed the duplicate block completely.
-
-It was a small cleanup, but duplicate token systems become confusing over time:
-
-* Which set is the real source of truth?
-* Are both still synchronized?
-* What happens when someone updates one but not the other?
-
-That kind of inconsistency quietly creates UI bugs later.
+It was a small cleanup, but small inconsistencies like that can cause bigger maintenance issues later.
 
 ---
 
 # Q7 — Gall’s Law
 
-SecureGate was built in stages:
+Code reference: `app/`, `lib/`, `prisma/`, and `middleware.ts`
 
-```text
-Next.js scaffold
-→ Prisma schema
-→ shared lib modules
-→ API routes
-→ auth pages
-→ dashboard
-→ middleware
-→ security hardening
-```
+SecureGate was built step by step instead of trying to build everything at once.
 
-Each phase worked before the next one was introduced.
+I first made sure the database worked, then signup, then authentication pages, then dashboard protection and middleware.
 
-The database layer was tested before authentication depended on it. Signup worked before email verification was connected. Authentication pages existed before dashboard protection was added.
-
-Trying to build everything at once would have made debugging far more difficult because problems in one layer would look like failures somewhere else.
-
-Gall’s Law fits this process well: a working complex system usually grows out of smaller working pieces.
+Building it gradually made debugging easier because each layer was already working before the next one depended on it.
 
 ---
 
 # Q8 — Law of Leaky Abstractions (ORM)
 
-**Code reference:** `prisma/schema.prisma lines 10-18`
+Code reference: `prisma/schema.prisma:10-18`
 
-```prisma
-model User {
-  id             String   @id @default(uuid())
-  name           String
-  email          String   @unique
-  passwordHash   String
-  emailVerified  DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
-```
+Prisma simplifies database work a lot, but PostgreSQL behavior still matters underneath.
 
-Prisma abstracts most database behavior, but the underlying PostgreSQL details still matter.
+For example, optional Prisma fields are still nullable database columns behind the scenes. Also, Prisma automatically updates some timestamps, but raw SQL queries would bypass that behavior.
 
-For example, `DateTime?` looks like an optional field in Prisma, but in PostgreSQL it is really a nullable timestamp column.
-
-The `@updatedAt` attribute is another example. Prisma automatically updates the timestamp during ORM operations, but if raw SQL bypasses Prisma, that timestamp no longer updates automatically.
-
-The abstraction works well most of the time, but once you hit performance issues, raw queries, or database edge cases, you still need to understand what PostgreSQL is doing underneath.
+The abstraction helps productivity, but understanding the database layer is still important.
 
 ---
 
 # Q9 — Zawinski’s Law
 
-**Code reference:** `lib/rate-limit.ts`
+Code reference: `lib/rate-limit.ts`
 
-NextAuth handled credential verification, but it did not provide abuse protection.
+While building authentication, I noticed how easy it is for projects to keep growing endlessly.
 
-Because of that, I had to build a separate rate-limiting system from scratch using a database-backed sliding window.
+At first it starts with login and signup, then suddenly there’s pressure to add rate limiting, MFA, audit logs, RBAC, device tracking, and more.
 
-That is where Zawinski’s Law becomes relevant.
-
-Once a system starts growing, there is always pressure to keep adding “just one more feature”:
-
-* rate limiting
-* IP blocking
-* device tracking
-* audit logs
-* RBAC
-* MFA
-
-Without boundaries, an authentication project can slowly turn into a much larger platform.
-
-That is why features like MFA, social login, and audit-log dashboards were intentionally left out of the MVP. The scope stayed focused on:
-
-* authentication
-* authorization
-* session security
-
-and nothing beyond that.
+To avoid overcomplicating the MVP, I kept the scope focused mainly on authentication, authorization, and session security.
 
 ---
 
 # Q10 — Principle of Least Surprise
 
-**Code reference:** `app/auth/page.tsx lines 109-115`
+Code reference: `app/auth/page.tsx:109-115`
 
-```ts
-if (res?.error) {
-  if (res.error.includes('Too many attempts')) {
-    setError('Too many attempts. Please try again later.');
-  } else {
-    setError('Invalid email or password.');
-  }
-}
-```
+The login form always shows the same generic error message when authentication fails.
 
-The login form always shows the same generic error message when credentials fail.
+It does not reveal whether the email or password was specifically incorrect.
 
-It does not reveal whether:
-
-* the email was wrong
-* the password was wrong
-* the account does not exist
-
-A login form should either sign the user in or clearly explain that the credentials were invalid.
-
-Detailed errors like:
-
-* `Email not found`
-* `Wrong password`
-
-only help attackers identify which field to target.
-
-The `Too many attempts` message follows the same idea. If the user has been rate-limited, the UI explains why the login suddenly stopped working instead of silently failing.
+This keeps the experience simple for normal users while also reducing information leakage that attackers could use.
 
 ---
 
 # Q11 — Murphy’s Law (Middleware / Session Protection)
 
-**Code reference:** `middleware.ts lines 5-47`
+Code reference: `middleware.ts:5-47`
 
-The middleware uses:
+The middleware checks every protected route for a valid session token.
 
-```ts
-getToken({ req, secret: process.env.NEXTAUTH_SECRET })
-```
+If the token is missing, expired, or invalid, the user is redirected back to the auth page automatically.
 
-This reads the session cookie, decrypts the JWT, and checks whether the user is authenticated.
-
-If the token is missing, expired, or invalid, `getToken()` returns `null` and the middleware redirects the user back to `/auth`.
-
-The same fallback path is used whether:
-
-* the cookie was manually deleted
-* the session expired
-* the token was never issued
-
-Every protected route goes through the same authentication gate, and every invalid session gets the same response.
-
-There is no path where a missing session silently grants access.
+This prevents situations where a broken or missing session accidentally grants access to protected pages.
 
 ---
 
 # Q12 — Kerckhoffs’s Principle (Secret Leak Recovery)
 
-If `NEXTAUTH_SECRET` were committed to GitHub, an attacker could use that secret to forge valid session tokens.
+Code reference: `.env`, `middleware.ts`, and `lib/auth.ts`
 
-For example, they could generate a JWT containing:
+If the NEXTAUTH_SECRET leaked publicly, attackers could generate fake session tokens and impersonate users.
 
-```json
-{
-  "email": "admin@example.com",
-  "emailVerified": true
-}
-```
+The first step would be rotating the secret immediately and updating it everywhere the app is deployed.
 
-and use it as a session cookie.
-
-Because the middleware trusts tokens signed with the correct secret, the forged session would be accepted.
-
-## Recovery steps
-
-1. Rotate the secret immediately.
-2. Update the new value in both `.env` and the hosting platform.
-3. Force all users to sign in again.
-4. Review logs for possible unauthorized access.
-5. Ensure `.env` files and secret patterns are excluded from version control.
-
-Kerckhoffs’s Principle says the system should remain secure even if the implementation is public knowledge. The problem here is not the authentication flow itself — it is that the secret protecting it was exposed.
+All users would also need to sign in again so old tokens become invalid.
 
 ---
 
 # Q13 — Conway’s Law
 
-**Code reference:** Top-level folder structure
+Code reference: `app/`, `components/`, `lib/`, `prisma/`, `styles/`, and `tokens/`
 
-```text
-SecureGate/
-├── app/
-├── components/
-├── lib/
-├── prisma/
-├── styles/
-├── tokens/
-└── public/
-```
+The folder structure reflects how I mentally separated the project while building it.
 
-Conway’s Law says systems naturally reflect the structure of the people building them.
+Shared logic lives in `lib/`, routes and pages are inside `app/`, reusable UI is in `components/`, and database structure is handled in `prisma/`.
 
-As a solo developer, the folder structure mirrors how I mentally separated the project:
-
-* `lib/` contains shared logic like auth, crypto, email, and database utilities
-* `app/` contains pages and API routes
-* `components/` contains reusable UI pieces
-* `prisma/` handles database structure
-* `tokens/` and `styles/` separate design concerns from application logic
-
-In a larger team, these boundaries would likely map directly to different responsibilities across frontend, backend, and design.
+As the project grows, these boundaries help keep responsibilities organized.
 
 ---
 
 # Q14 — Technical Debt
 
-**Code reference:** `lib/rate-limit.ts lines 80-91`
+Code reference: `lib/rate-limit.ts:80-91`
 
-```ts
-} catch (error) {
-  console.error('Rate limit error:', error);
+The current rate limiter allows requests if the database temporarily fails.
 
-  return {
-    success: true,
-    count: 0,
-    resetTime: now,
-  };
-}
-```
+I left this behavior intentionally for the MVP because I prioritized keeping authentication available during temporary database issues.
 
-If the database query fails, the rate limiter currently returns `success: true`.
-
-That means temporary database problems like:
-
-* timeouts
-* connection exhaustion
-* network interruptions
-
-can silently disable rate limiting.
-
-I left this implementation intentionally because the project is still an MVP, and availability was prioritized over infrastructure complexity.
-
-A more reliable approach would introduce multiple layers:
-
-* in-memory limiting as a fast fallback
-* database-backed limiting for shared persistence
-* optional Redis or edge-level protection later
-
-That would prevent a database outage from completely removing rate limiting.
-
-The current approach still works, but it leaves a gap during infrastructure failures.
+A better long-term solution would combine database storage with in-memory or Redis-based limiting for stronger reliability.
 
 ---
 
 # Q15 — Synthesis (Adding Payments)
 
-If Flutterwave payments were added to SecureGate, the same engineering principles would still apply, but the consequences would become much more serious.
+Code reference: `lib/auth.ts`, `middleware.ts`, and `app/api/*`
 
-## Murphy’s Law
+If payments were added later, the same engineering principles would still apply.
 
-Payments introduce many more failure cases:
+For example, payment webhooks would need idempotency so duplicate requests do not charge users multiple times.
 
-* a webhook arrives twice
-* the payment succeeds but the webhook fails
-* the server crashes before recording the transaction
-* the user closes the browser before redirect
+Secrets and webhook signatures would also need strong validation to prevent fake payment events.
 
-Because of this, payment flows must be idempotent.
+I would also build the payment system gradually instead of trying to add subscriptions, invoices, analytics, and billing logic all at once.
 
-The same transaction should never:
-
-* charge twice
-* unlock premium access twice
-* create duplicate subscriptions
-
-Transaction references would need to be stored and verified before processing webhooks.
-
-## Kerckhoffs’s Principle
-
-Payment secrets become just as sensitive as authentication secrets.
-
-Values like:
-
-* Flutterwave secret keys
-* webhook signing secrets
-* encryption keys
-
-must never appear in logs, source code, stack traces, or client-side bundles.
-
-Webhook requests should also verify the `Flutterwave-Signature` header before accepting payment confirmations.
-
-Without that validation, attackers could fake successful payment events.
-
-## Principle of Least Surprise
-
-Payment feedback needs to be clear without exposing internal system details.
-
-Good:
-
-```text
-Card declined — try another payment method.
-```
-
-Bad:
-
-```text
-Flutterwave /charges endpoint returned HTTP 402.
-```
-
-After a successful payment, premium access should update immediately without forcing the user to manually refresh the app.
-
-## Postel’s Law
-
-Webhook handlers should tolerate additional fields from future API versions while still validating required data.
-
-That means:
-
-* accepting unknown metadata
-* ignoring irrelevant fields
-* rejecting invalid signatures
-* rejecting malformed payloads
-
-The parser should be flexible in what it accepts but strict about what it trusts.
-
-## Gall’s Law
-
-A payment system should be built in stages:
-
-```text
-one-time payments
-→ webhook verification
-→ subscription state
-→ recurring billing
-→ retry handling
-```
-
-Each stage should already work before the next layer is added.
-
-Trying to build the entire billing system at once would make failures much harder to isolate.
-
-## Zawinski’s Law
-
-Once payments exist, there is immediate pressure to keep expanding:
-
-* invoices
-* coupon systems
-* analytics
-* usage billing
-* multi-currency support
-
-Without strict scope boundaries, the project could slowly evolve from an authentication system into a full billing platform.
-
-## Conway’s Law
-
-Payment logic should stay isolated from authentication logic.
-
-For example:
-
-```text
-lib/payments.ts
-lib/webhooks.ts
-app/api/webhooks/flutterwave/route.ts
-```
-
-Keeping those concerns separate prevents the codebase from becoming tightly coupled.
-
-A webhook issue should never interfere with authentication or session handling.
 
 ## Part 4 — One Thing I Would Refactor
 
