@@ -2,7 +2,7 @@
 
 Name: Odunmbaku Olusola Benjamen
 Cohort: Design to MVP Bootcamp
-Live URL:
+Live URL: https://secure-gate-kohl.vercel.app/
 GitHub Repo: https://github.com/benjr10/SecureGate.git
 ....
 
