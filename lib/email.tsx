@@ -1,15 +1,25 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
 
+const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
+const smtpUser = process.env.SMTP_USER || '';
+const smtpPass = process.env.SMTP_PASS || '';
+const emailFrom = process.env.EMAIL_FROM || `"SecureGate" <${smtpUser}>`;
 const resendApiKey = process.env.RESEND_API_KEY;
-const senderEmail = process.env.SENDER_EMAIL || 'onboarding@resend.dev';
-const appUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
-const resend =
-  resendApiKey && !resendApiKey.includes('placeholder')
-    ? new Resend(resendApiKey)
-    : null;
+let transporter: nodemailer.Transporter | null = null;
+if (smtpUser && smtpPass) {
+  transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: false,
+    auth: { user: smtpUser, pass: smtpPass },
+  });
+}
+
+const appUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
 function logEmailToFile(subject: string, to: string, url: string) {
   try {
@@ -28,6 +38,41 @@ function logEmailToFile(subject: string, to: string, url: string) {
     console.log('==================================================\n');
   } catch (err) {
     console.error('Failed to log email to file:', err);
+  }
+}
+
+async function sendEmailViaNodemailer(to: string, subject: string, html: string) {
+  if (!transporter) {
+    console.warn('Nodemailer not configured. Skipping SMTP send.');
+    return;
+  }
+  try {
+    await transporter.sendMail({
+      from: emailFrom,
+      to,
+      subject,
+      html,
+    });
+    console.log(`Email sent via Nodemailer to ${to}`);
+  } catch (error) {
+    console.error('Failed to send email via Nodemailer:', error);
+  }
+}
+
+async function sendEmailViaResend(to: string, subject: string, react: React.ReactElement) {
+  if (!resendApiKey || resendApiKey.includes('placeholder')) return;
+  try {
+    const { Resend } = await import('resend');
+    const resend = new Resend(resendApiKey);
+    await resend.emails.send({
+      from: process.env.SENDER_EMAIL || 'onboarding@resend.dev',
+      to,
+      subject,
+      react,
+    });
+    console.log(`Email sent via Resend to ${to}`);
+  } catch (error) {
+    console.error('Failed to send email via Resend:', error);
   }
 }
 
@@ -114,18 +159,11 @@ export async function sendVerificationEmail(email: string, name: string, token: 
 
   logEmailToFile('Verify Email', email, url);
 
-  if (resend) {
-    try {
-      await resend.emails.send({
-        from: senderEmail,
-        to: email,
-        subject: 'Verify your email - SecureGate',
-        react: <VerificationEmail name={name} url={url} />,
-      });
-    } catch (error) {
-      console.error('Failed to send verification email via Resend:', error);
-    }
-  }
+  const { renderToString } = await import('react-dom/server');
+  const html = renderToString(<VerificationEmail name={name} url={url} />);
+
+  await sendEmailViaNodemailer(email, 'Verify your email - SecureGate', html);
+  await sendEmailViaResend(email, 'Verify your email - SecureGate', <VerificationEmail name={name} url={url} />);
 }
 
 export async function sendResetPasswordEmail(email: string, token: string): Promise<void> {
@@ -133,16 +171,9 @@ export async function sendResetPasswordEmail(email: string, token: string): Prom
 
   logEmailToFile('Reset Password', email, url);
 
-  if (resend) {
-    try {
-      await resend.emails.send({
-        from: senderEmail,
-        to: email,
-        subject: 'Reset your password - SecureGate',
-        react: <ResetPasswordEmail url={url} />,
-      });
-    } catch (error) {
-      console.error('Failed to send password reset email via Resend:', error);
-    }
-  }
+  const { renderToString } = await import('react-dom/server');
+  const html = renderToString(<ResetPasswordEmail url={url} />);
+
+  await sendEmailViaNodemailer(email, 'Reset your password - SecureGate', html);
+  await sendEmailViaResend(email, 'Reset your password - SecureGate', <ResetPasswordEmail url={url} />);
 }
