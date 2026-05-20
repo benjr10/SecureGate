@@ -8,7 +8,7 @@ GitHub Repo: https://github.com/benjr10/SecureGate.git
 
 ## Part 1 — What I Built
 
-I built SecureGate, a focused authentication and security application using Next.js, TypeScript, Prisma, PostgreSQL, NextAuth, and Resend. The app includes secure signup and login flows, email verification, password reset functionality, JWT session handling, protected dashboard routes, middleware-based access control, rate limiting, and password hashing with bcryptjs. I also implemented responsive dashboard and profile pages, proper validation handling, secure error messaging, and a lightweight public landing page to create a cleaner flow before authentication and make the application feel more production-ready.
+I built SecureGate, a focused authentication and security application using Next.js, TypeScript, Prisma, PostgreSQL, NextAuth, and Resend/Nodemailer. The app includes secure signup and login flows, email verification, password reset functionality, JWT session handling, protected dashboard routes, middleware-based access control, rate limiting, and password hashing with bcryptjs. I also implemented responsive dashboard and profile pages, proper validation handling, secure error messaging, and a lightweight public landing page to create a cleaner flow before authentication and make the application feel more production-ready.
 
 
 ---
